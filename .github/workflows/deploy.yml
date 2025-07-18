@@ -25,14 +25,6 @@ jobs:
       with:
         python-version: '3.9'
 
-    - name: Cache pip dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -41,9 +33,7 @@ jobs:
 
     - name: Lint with flake8
       run: |
-        # 停止构建如果有Python语法错误或未定义的名称
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=venv
-        # 警告其他问题但不停止构建
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics --exclude=venv
 
     - name: Test with pytest
@@ -64,12 +54,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+
     - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v1
+      uses: google-github-actions/setup-gcloud@v2
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
-        service_account_key: ${{ secrets.GCP_SA_KEY }}
-        export_default_credentials: true
 
     - name: Configure Docker to use gcloud as credential helper
       run: gcloud auth configure-docker
@@ -104,6 +98,6 @@ jobs:
 
     - name: Test deployment
       run: |
-        sleep 30  # 等待服务完全启动
+        sleep 30
         curl -f $SERVICE_URL/health || exit 1
         echo "✅ Deployment test passed!"
